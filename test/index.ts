@@ -48,19 +48,23 @@ describe("NFTSwap", function () {
     await nftSwap.createNFTSellOrder(2046818900, nft.address, 5, ethers.utils.parseEther('10.0'));
 
     const hash = await nftSwap.calculateListingHash(signers[0].address, nft.address, 1);
+    const hash2 = await nftSwap.calculateListingHash(signers[0].address, nft.address, 2);
   
     await ethers.provider.send('evm_mine', []);
   
-    await nftSwap.connect(signers[1]).submitNFTBuyOrder(hash, { value: ethers.utils.parseEther('100.0')});
+    await nftSwap.connect(signers[1]).submitNFTBuyOrder(hash, { value: ethers.utils.parseEther('100.0') });
+    await nftSwap.connect(signers[2]).submitNFTBuyOrder(hash2, { value: ethers.utils.parseEther('10.0') });
   
     await ethers.provider.send('evm_mine', []);
 
-    console.log(`Address 0 NFT balance: ${await nft.balanceOf(signers[0].address)}`);
-    console.log(`Address 1 NFT balance: ${await nft.balanceOf(signers[1].address)}`);
-    console.log(`Address 0 ETH balance: ${await ethers.provider.getBalance(signers[0].address)}`);
-    console.log(`Address 1 ETH balance: ${await ethers.provider.getBalance(signers[1].address)}`);
-
-    expect(await nft.balanceOf(signers[0].address)).to.equal(4);
+    expect(await nft.balanceOf(signers[0].address)).to.equal(3);
     expect(await nft.balanceOf(signers[1].address)).to.equal(2);
+    expect(await nft.balanceOf(signers[2].address)).to.equal(1);
+
+    const order1 = await nftSwap.getOrder(hash);
+    const order2 = await nftSwap.getOrder(hash2);
+
+    expect(order1[5]).to.equal(signers[1].address);
+    expect(order2[5]).to.equal(signers[2].address);
   });
 });
