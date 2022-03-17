@@ -7,37 +7,25 @@ import "../interfaces/IERC20.sol";
 
 library Orders {
 
-    enum SaleStatus {
-        ACTIVE,
-        FILLED,
-        CANCELLED
-    }
-
-    enum TokenType {
-        ERC20,
-        ERC721,
-        ERC1155
-    }
-
     struct NFTListing {
+        uint8 tokenType; // 0 is ERC721, 1 is ERC1155
+        uint8 status; // 0 is Active, 1 is Filled, 2 is Cancelled
+        uint64 expiry;
+        uint160 nft;
         address lister;
         address taker;
-        uint256 expiry;
-        address nft;
         uint256 nftId;
         uint256 paymentAmount;
-        TokenType tokenType;
-        SaleStatus status;
     }
 
     struct TokenListing {
-        IERC20 token;
+        uint8 status; // 0 is Active, 1 is Filled, 2 is Cancelled
+        uint64 expiry;
+        uint160 token;
         uint256 tokenAmount;
         uint256 paymentAmount;
-        uint256 expiry;
         address lister;
         address taker;
-        SaleStatus status;
     }
 
     function getTokenHash(address nft, uint256 nftId) internal pure returns (bytes32)

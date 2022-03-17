@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 import "./libraries/SafeMath.sol";
 import "./libraries/Orders.sol";
+import "./libraries/Ownable.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IERC721.sol";
 import "./interfaces/IERC1155.sol";
@@ -16,8 +17,8 @@ import "./interfaces/IERC1155.sol";
  * Ancillary functions to support front-end (if needed)
 */
 
-// solhint-disable not-rely-on-time, no-empty-blocks
-contract NFTSwap {
+// solhint-disable not-rely-on-time, no-empty-blocks, avoid-low-level-calls
+contract NFTSwap is Ownable {
     using SafeMath for uint256;
 
     uint256 private _exchangeInProgress; // 0 = not in progress; 1 = in progress
@@ -31,6 +32,8 @@ contract NFTSwap {
     receive() external payable {}
     fallback() external payable {}
 
+    /// <======= MODIFIERS =======> ///
+
     // Reentrancy prevention modifier
     modifier exchangeInProgress {
         require(_exchangeInProgress == 0, "Exchange in progress");
@@ -38,6 +41,8 @@ contract NFTSwap {
         _;
         _exchangeInProgress = 0;
     }
+
+    /// <======= VIEW FUNCTIONS =======> ///
 
     /**
      * @dev Calculates the listing hash based on parameters
@@ -51,77 +56,11 @@ contract NFTSwap {
     function calculateListingHash(address lister, address nft, uint256 nftId) external view returns (bytes32)
     {
         bytes32 listingHash = Orders.getNFTListingHash(lister, nft, nftId);
-        if (_orders[listingHash].nft == address(0)) {
+        if (_orders[listingHash].nft == 0) {
             return keccak256(abi.encodePacked(uint256(0)));
         } else {
             return listingHash;
         }
-    }
-
-    /**
-     * @dev Creates NFT sell order. Calls internal function immediately
-     *
-     * @param expiry the timestamp which the order expires
-     * @param nft the main NFT contract address
-     * @param nftId the individual NFT ID
-     * @param paymentAmount output amount desired in ETH
-     */
-    function createNFTSellOrder(uint256 expiry, address nft, uint256 nftId, uint256 paymentAmount) external
-    {
-        _createNFTSellOrder(msg.sender, expiry, nft, nftId, paymentAmount);
-    }
-
-    /**
-     * @dev Sets open NFT sell order to cancelled
-     *
-     * @param listingId the listing ID from _orders mapping.
-     */
-    function cancelSellOrder(bytes32 listingId) external
-    {
-        require(_orders[listingId].lister == msg.sender, "Not lister");
-        require(block.timestamp <= _orders[listingId].expiry, "Already expired");
-        require(_orders[listingId].status == Orders.SaleStatus.ACTIVE, "Already inactive");
-
-        _orders[listingId].status = Orders.SaleStatus.CANCELLED;
-    }
-
-    /**
-     * @dev Creates sell order for a fungible (ERC20) token
-     *
-     * @param expiry the timestamp which the order expires
-     * @param token the token to sell
-     * @param tokenAmount the amount of the token to sell
-     * @param paymentAmount the expected output in ETH
-     */
-    function createOTCSellOrder(uint256 expiry, IERC20 token, uint256 tokenAmount, uint256 paymentAmount) external
-    {
-        require(token.balanceOf(msg.sender) >= tokenAmount, "Not enough balance in wallet");
-        require(token.allowance(msg.sender, address(this)) >= tokenAmount, "Not approved");
-
-        uint totalOrders = _totalOTCOrders[msg.sender].add(1);
-        _totalOTCOrders[msg.sender] = totalOrders;
-
-        bytes32 listingId = Orders.getTokenListingHash(msg.sender, totalOrders);
-
-        _otcOrders[listingId] = Orders.TokenListing({
-            lister: msg.sender,
-            taker: address(0),
-            token: token,
-            tokenAmount: tokenAmount,
-            expiry: expiry,
-            paymentAmount: paymentAmount,
-            status: Orders.SaleStatus.ACTIVE
-        });
-    }
-
-    /**
-     * @dev Submits a request to fill an NFT order
-     *
-     * @param listingId the list ID hash to look up the sell order
-     */
-    function submitNFTBuyOrder(bytes32 listingId) external payable exchangeInProgress()
-    {
-        _submitNFTBuyOrder(listingId);
     }
 
     /**
@@ -150,6 +89,74 @@ contract NFTSwap {
         }
     }
 
+    /// <======= MUTATIVE FUNCTIONS =======> ///
+
+    /**
+     * @dev Creates NFT sell order. Calls internal function immediately
+     *
+     * @param expiry the timestamp which the order expires
+     * @param nft the main NFT contract address
+     * @param nftId the individual NFT ID
+     * @param paymentAmount output amount desired in ETH
+     */
+    function createNFTSellOrder(uint64 expiry, address nft, uint256 nftId, uint256 paymentAmount) external
+    {
+        _createNFTSellOrder(msg.sender, expiry, nft, nftId, paymentAmount);
+    }
+
+    /**
+     * @dev Sets open NFT sell order to cancelled
+     *
+     * @param listingId the listing ID from _orders mapping.
+     */
+    function cancelSellOrder(bytes32 listingId) external
+    {
+        require(_orders[listingId].lister == msg.sender, "Not lister");
+        require(block.timestamp <= _orders[listingId].expiry, "Already expired");
+        require(_orders[listingId].status == 0, "Already inactive");
+
+        _orders[listingId].status = 2;
+    }
+
+    /**
+     * @dev Creates sell order for a fungible (ERC20) token
+     *
+     * @param expiry the timestamp which the order expires
+     * @param token the token to sell
+     * @param tokenAmount the amount of the token to sell
+     * @param paymentAmount the expected output in ETH
+     */
+    function createOTCSellOrder(uint64 expiry, IERC20 token, uint256 tokenAmount, uint256 paymentAmount) external
+    {
+        require(token.balanceOf(msg.sender) >= tokenAmount, "Not enough balance in wallet");
+        require(token.allowance(msg.sender, address(this)) >= tokenAmount, "Not approved");
+
+        uint totalOrders = _totalOTCOrders[msg.sender].add(1);
+        _totalOTCOrders[msg.sender] = totalOrders;
+
+        bytes32 listingId = Orders.getTokenListingHash(msg.sender, totalOrders);
+
+        _otcOrders[listingId] = Orders.TokenListing({
+            lister: msg.sender,
+            taker: address(0),
+            token: uint160(address(token)),
+            tokenAmount: tokenAmount,
+            expiry: expiry,
+            paymentAmount: paymentAmount,
+            status: 0
+        });
+    }
+
+    /**
+     * @dev Submits a request to fill an NFT order
+     *
+     * @param listingId the list ID hash to look up the sell order
+     */
+    function submitNFTBuyOrder(bytes32 listingId) external payable exchangeInProgress()
+    {
+        _submitNFTBuyOrder(listingId);
+    }
+
     /**
      * @dev Creates NFT sell order. Calls internal function immediately
      *
@@ -159,7 +166,7 @@ contract NFTSwap {
      * @param nftId the individual NFT ID
      * @param paymentAmount output amount desired in ETH
      */
-    function _createNFTSellOrder(address lister, uint256 expiry, address nft, uint256 nftId, uint256 paymentAmount) private
+    function _createNFTSellOrder(address lister, uint64 expiry, address nft, uint256 nftId, uint256 paymentAmount) private
     {
         // Perform validation checks
         require(expiry > block.timestamp, "Expired");
@@ -173,11 +180,11 @@ contract NFTSwap {
             lister: lister,
             taker: address(0),
             expiry: expiry,
-            nft: nft,
+            nft: uint160(nft),
             nftId: nftId,
             paymentAmount: paymentAmount,
-            status: Orders.SaleStatus.ACTIVE,
-            tokenType: Orders.TokenType.ERC721
+            status: 0,
+            tokenType: 0
         });
     }
 
@@ -191,32 +198,32 @@ contract NFTSwap {
         uint256 preBalance = address(this).balance.sub(msg.value);
 
         // Get listing from storage
-        Orders.NFTListing memory listing = _orders[listingId];
+        Orders.NFTListing storage listing = _orders[listingId];
 
         // General param check
-        require(listing.nft != address(0), "Listing not found");
+        require(listing.nft != 0, "Listing not found");
         require(msg.value >= listing.paymentAmount, "Value too low");
-        require(listing.status == Orders.SaleStatus.ACTIVE, "Listing inactive");
+        require(listing.status == 0, "Listing inactive");
         require(listing.expiry > block.timestamp, "Expired");
 
-        if (listing.tokenType == Orders.TokenType.ERC721) {
-            _buy721(listing.lister, listing.nft, listing.nftId);
+        if (listing.tokenType == 0) {
+            _buy721(listing.lister, address(listing.nft), listing.nftId);
         } else {
-            _buy1155(listing.lister, listing.nft, listing.nftId);
+            _buy1155(listing.lister, address(listing.nft), listing.nftId);
         }
-
-        // Make ETH transfers
-        (bool success, ) = listing.lister.call{value: listing.paymentAmount}("");
-        require(success, "Payment failed");
-
-        // Update listing status
-        listing.status = Orders.SaleStatus.FILLED;
-        listing.taker = msg.sender;
 
         // Take fee
         uint256 feeToTake = _takeFee(listing.paymentAmount);
+
+        // Make ETH transfers
+        (bool success, ) = listing.lister.call{value: listing.paymentAmount.sub(feeToTake)}("");
+        require(success, "Payment failed");
+
+        // Update listing status
+        listing.status = 1;
+        listing.taker = msg.sender;
         
-        // Check balance after deposit
+        // Check balance after deposit and fee
         uint256 postBalance = address(this).balance.sub(feeToTake);
 
         // If extra ETH was sent, refund it to buyer
