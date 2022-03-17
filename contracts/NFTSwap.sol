@@ -200,23 +200,27 @@ contract NFTSwap is Ownable {
         // Get listing from storage
         Orders.NFTListing storage listing = _orders[listingId];
 
+        address lister = listing.lister;
+        address nft = address(listing.nft);
+        uint256 paymentAmount = listing.paymentAmount;
+
         // General param check
-        require(listing.nft != 0, "Listing not found");
+        require(nft != address(0), "Listing not found");
         require(msg.value >= listing.paymentAmount, "Value too low");
         require(listing.status == 0, "Listing inactive");
         require(listing.expiry > block.timestamp, "Expired");
 
         if (listing.tokenType == 0) {
-            _buy721(listing.lister, address(listing.nft), listing.nftId);
+            _buy721(lister, nft, listing.nftId);
         } else {
-            _buy1155(listing.lister, address(listing.nft), listing.nftId);
+            _buy1155(lister, nft, listing.nftId);
         }
 
         // Take fee
-        uint256 feeToTake = _takeFee(listing.paymentAmount);
+        uint256 feeToTake = _takeFee(paymentAmount);
 
         // Make ETH transfers
-        (bool success, ) = listing.lister.call{value: listing.paymentAmount.sub(feeToTake)}("");
+        (bool success, ) = lister.call{value: paymentAmount.sub(feeToTake)}("");
         require(success, "Payment failed");
 
         // Update listing status
