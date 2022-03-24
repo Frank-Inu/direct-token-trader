@@ -11,9 +11,7 @@ import "./interfaces/IERC1155.sol";
 
 /**
  * TODO:
- * Test ERC1155 listings and sales
  * Test ERC20 listings and sales
- * Gas optimizations where possible
  * Ancillary functions to support front-end (if needed)
 */
 
@@ -145,6 +143,61 @@ contract NFTSwap is Ownable {
             paymentAmount: paymentAmount,
             status: 0
         });
+    }
+
+    /**
+    
+     */
+    function submitOTCBuyOrder(bytes32 listingId) external payable exchangeInProgress()
+    {
+        _submitOTCBuyOrder(listingId);
+    }
+
+    function _submitOTCBuyOrder(bytes32 listingId) private
+    {
+        uint256 preBalance = address(this).balance.sub(msg.value);
+
+        Orders.TokenListing storage listing = _otcOrders[listingId];
+
+        address lister = listing.lister;
+        IERC20 token = IERC20(address(listing.token));
+        uint256 paymentAmount = listing.paymentAmount;
+
+        require(lister != address(0), "Listing not found");
+        require(msg.value >= listing.paymentAmount, "Value too low");
+        require(listing.status == 0, "Listing inactive");
+        require(listing.expiry > block.timestamp, "Expired");
+
+        require(_buy20(lister, token, paymentAmount), "Transfer failed");
+
+        // Take fee
+        uint256 feeToTake = _takeFee(paymentAmount);
+
+        // Make ETH transfers
+        (bool success, ) = lister.call{value: paymentAmount.sub(feeToTake)}("");
+        require(success, "Payment failed");
+
+        // Update listing status
+        listing.status = 1;
+        listing.taker = msg.sender;
+
+        uint256 postBalance = address(this).balance.sub(feeToTake);
+
+        // If extra ETH was sent, refund to buyer
+        if (postBalance.sub(preBalance) > 0) {
+            (success, ) = msg.sender.call{value: postBalance.sub(preBalance)}("");
+            require(success, "Refund failed");
+        }
+    }
+
+    function _buy20(address lister, IERC20 token, uint256 tokenAmount) private returns (bool)
+    {
+        require(token.allowance(lister, address(this)) >= tokenAmount, "Lister has not approved contract");
+        require(token.balanceOf(lister) >= tokenAmount, "Lister no longer has balance");
+
+        token.transferFrom(lister, msg.sender, tokenAmount);
+
+        return true;
     }
 
     /**
