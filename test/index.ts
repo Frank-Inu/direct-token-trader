@@ -99,6 +99,14 @@ describe("NFTSwap", function () {
 
     // Expect new balance to equal 0.5 ETH - contract fee
     expect(postBalance.sub(preBalance)).to.equal(BigNumber.from(ethers.utils.parseEther('0.5')).mul(95).div(100));
+
+    // Expect contract balance to be the fees from each of the completed orders
+    const contractBalance = await ethers.provider.getBalance(nftSwap.address);
+    let expectedBalance = BigNumber.from(ethers.utils.parseEther('0.5').mul(5).div(100));
+    expectedBalance = expectedBalance.add(ethers.utils.parseEther('10.0').mul(5).div(100));
+    expectedBalance = expectedBalance.add(ethers.utils.parseEther('10.0').mul(5).div(100));
+
+    expect(contractBalance).to.equal(expectedBalance);
     
   });
 });
