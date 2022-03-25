@@ -1,5 +1,8 @@
 {
-  "name": "hardhat-project",
+  "name": "direct-token-trader",
+  "version": "0.1.0",
+  "description": "Ethereum dapp to create direct, peer-to-peer token and NFT sales",
+  "license": "MIT",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.0",
     "@nomiclabs/hardhat-etherscan": "^2.1.3",
