@@ -66,8 +66,8 @@ describe("NFTSwap", function () {
     expect(await nft.balanceOf(signers[1].address)).to.equal(2);
     expect(await nft.balanceOf(signers[2].address)).to.equal(1);
 
-    const order1 = await nftSwap.getOrder(hash);
-    const order2 = await nftSwap.getOrder(hash2);
+    const order1 = await nftSwap.getNFTListing(hash);
+    const order2 = await nftSwap.getNFTListing(hash2);
 
     expect(order1[5]).to.equal(signers[1].address);
     expect(order2[5]).to.equal(signers[2].address);
