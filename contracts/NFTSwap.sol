@@ -110,16 +110,29 @@ contract NFTSwap is Ownable {
     }
 
     /**
-     * @dev Requests order details from mapping
+     * @dev Requests NFT order details from mapping
      *
-     * @param order the order hash to lookup in mapping
+     * @param listing the listing hash to lookup in mapping
      */
-    function getOrder(bytes32 order)
+    function getNFTListing(bytes32 listing)
         external
         view
         returns (Orders.NFTListing memory)
     {
-        return _orders[order];
+        return _orders[listing];
+    }
+
+    /**
+     * @dev Requests ERC20 order details from mapping
+     *
+     * @param listing the listing hash to lookup in mapping
+     */
+    function getTokenListing(bytes32 listing)
+        external
+        view
+        returns (Orders.TokenListing memory)
+    {
+        return _otcOrders[listing];
     }
 
     /**
