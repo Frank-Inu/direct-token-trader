@@ -174,13 +174,29 @@ contract NFTSwap is Ownable {
      *
      * @param listingId the listing ID from _orders mapping.
      */
-    function cancelSellOrder(bytes32 listingId) external {
+    function cancelNFTSellOrder(bytes32 listingId) external {
         require(_orders[listingId].lister == msg.sender, "Not lister");
         require(
             block.timestamp <= _orders[listingId].expiry,
             "Already expired"
         );
         require(_orders[listingId].status == 0, "Already inactive");
+
+        _orders[listingId].status = 2;
+    }
+
+    /**
+     * @dev Sets open OTC sell order to cancelled
+     *
+     * @param listingId the listing ID from _otcOrders mapping
+     */
+    function cancelOTCSellOrder(bytes32 listingId) external {
+        require(_otcOrders[listingId].lister == msg.sender, "Not lister");
+        require(
+            block.timestamp <= _otcOrders[listingId].expiry,
+            "Already expired"
+        );
+        require(_otcOrders[listingId].status == 0, "Already inactive");
 
         _orders[listingId].status = 2;
     }
