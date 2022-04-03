@@ -301,18 +301,18 @@ contract NFTSwap is Ownable {
 
         require(_buy20(lister, token, paymentAmount), "Transfer failed");
 
+        // Update listing status
+        listing.status = 1;
+        listing.taker = msg.sender;
+
         // Take fee
         uint256 feeToTake = _takeFee(paymentAmount);
 
-        // Make ETH transfers
+        // Send ETH to seller
         (bool success, ) = lister.call{ value: paymentAmount.sub(feeToTake) }(
             ""
         );
         require(success, "Payment failed");
-
-        // Update listing status
-        listing.status = 1;
-        listing.taker = msg.sender;
 
         uint256 postBalance = address(this).balance.sub(feeToTake);
 
@@ -403,6 +403,11 @@ contract NFTSwap is Ownable {
         require(listing.status == 0, "Listing inactive");
         require(listing.expiry > block.timestamp, "Expired");
 
+        // Update listing status
+        listing.status = 1;
+        listing.taker = msg.sender;
+
+        // Transfer NFT to buyer
         if (listing.tokenType == 0) {
             require(
                 _buy721(lister, IERC721(nft), listing.nftId),
@@ -418,15 +423,11 @@ contract NFTSwap is Ownable {
         // Take fee
         uint256 feeToTake = _takeFee(paymentAmount);
 
-        // Make ETH transfers
+        // Send ETH to seller
         (bool success, ) = lister.call{ value: paymentAmount.sub(feeToTake) }(
             ""
         );
         require(success, "Payment failed");
-
-        // Update listing status
-        listing.status = 1;
-        listing.taker = msg.sender;
 
         // Check balance after deposit and fee
         uint256 postBalance = address(this).balance.sub(feeToTake);
