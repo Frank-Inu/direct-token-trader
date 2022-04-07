@@ -240,7 +240,11 @@ contract NFTSwap is Ownable {
      */
     function setFee(uint256 newFee) external onlyOwner {
         require(newFee < 10000, "Fee must be less than 100%");
+
+        uint256 oldFee = _feePercent;
         _feePercent = newFee;
+        
+        emit FeeChanged(oldFee, newFee);
     }
 
     /**
@@ -552,4 +556,5 @@ contract NFTSwap is Ownable {
     event OTCSellOrderCreated(address indexed lister, bytes32 listingHash);
     event OTCSellOrderFilled(address indexed lister, address indexed taker);
     event OTCOrderCancelled(address indexed lister, bytes32 listingHash);
+    event FeeChanged(uint256 oldFee, uint256 newFee);
 }
