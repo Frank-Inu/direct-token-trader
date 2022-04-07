@@ -14,7 +14,7 @@ contract NFTSwap is Ownable {
     using SafeMath for uint256;
 
     uint256 private _exchangeInProgress; // 0 = not in progress; 1 = in progress
-    uint256 private _feePercent = 500; // Extra 2 digits; 500 = 5%
+    uint256 private _feePercent = 0; // Extra 2 digits; 1000 = 10.00%
 
     mapping(bytes32 => Orders.NFTListing) private _orders;
     mapping(bytes32 => Orders.TokenListing) private _otcOrders;
@@ -37,6 +37,15 @@ contract NFTSwap is Ownable {
     }
 
     /// <======= VIEW FUNCTIONS =======> ///
+
+    /**
+     * @dev Gets current trading fee
+     *
+     * @return fee current _feePercent (extra 2 digits; 500 = 5.00%)
+     */
+    function getFee() external view returns (uint256) {
+        return _feePercent;
+    }
 
     /**
      * @dev Calculates the NFT listing hash
@@ -221,6 +230,17 @@ contract NFTSwap is Ownable {
             tokenAmount,
             paymentAmount
         );
+    }
+
+    /**
+     * @dev Owner only function to adjust contract fee
+     *
+     * @param newFee the new fee to take. Use additional 2 digits for
+     * more granularity; 1000 = 10.00%
+     */
+    function setFee(uint256 newFee) external onlyOwner {
+        require(newFee < 10000, "Fee must be less than 100%");
+        _feePercent = newFee;
     }
 
     /**
