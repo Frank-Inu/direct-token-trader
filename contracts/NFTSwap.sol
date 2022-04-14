@@ -239,12 +239,22 @@ contract NFTSwap is Ownable {
      * more granularity; 1000 = 10.00%
      */
     function setFee(uint256 newFee) external onlyOwner {
-        require(newFee < 10000, "Fee must be less than 100%");
+        require(newFee <= 5000, "Fee must be 50% or less");
 
         uint256 oldFee = _feePercent;
         _feePercent = newFee;
         
         emit FeeChanged(oldFee, newFee);
+    }
+
+    /**
+     * @dev Owner only function to withdraw fees
+     *
+     * @notice added reentrancy protection in case of malicious owner
+     */
+    function withdrawFees() external onlyOwner exchangeInProgress {
+        (bool success, ) = owner().call{value: address(this).balance}("");
+        require(success, "Transfer failed");
     }
 
     /**
