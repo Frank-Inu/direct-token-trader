@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.13;
 
-import "./libraries/SafeMath.sol";
 import "./libraries/Orders.sol";
 import "./libraries/Ownable.sol";
 import "./interfaces/IERC20.sol";
@@ -11,7 +10,6 @@ import "./interfaces/IERC1155.sol";
 
 // solhint-disable not-rely-on-time, no-empty-blocks, avoid-low-level-calls
 contract NFTSwap is Ownable {
-    using SafeMath for uint256;
 
     uint256 private _exchangeInProgress; // 0 = not in progress; 1 = in progress
     uint256 private _feePercent = 0; // Extra 2 digits; 1000 = 10.00%
@@ -152,7 +150,7 @@ contract NFTSwap is Ownable {
      */
     function _takeFee(uint256 orderAmount) private view returns (uint256) {
         if (_feePercent > 0) {
-            return orderAmount.mul(_feePercent).div(10000);
+            return orderAmount * _feePercent / 10000;
         } else {
             return 0;
         }
@@ -282,7 +280,7 @@ contract NFTSwap is Ownable {
             "Not approved"
         );
 
-        uint256 totalOrders = _totalOTCOrders[lister].add(1);
+        uint256 totalOrders = _totalOTCOrders[lister] + 1;
         _totalOTCOrders[lister] = totalOrders;
 
         bytes32 listHash = Orders.getTokenListingHash(lister, totalOrders);
@@ -319,7 +317,7 @@ contract NFTSwap is Ownable {
      * @param listingId the bytes32 listing hash
      */
     function _submitOTCBuyOrder(bytes32 listingId) private {
-        uint256 preBalance = address(this).balance.sub(msg.value);
+        uint256 preBalance = address(this).balance - msg.value;
 
         Orders.TokenListing storage listing = _otcOrders[listingId];
 
@@ -342,16 +340,16 @@ contract NFTSwap is Ownable {
         uint256 feeToTake = _takeFee(paymentAmount);
 
         // Send ETH to seller
-        (bool success, ) = lister.call{ value: paymentAmount.sub(feeToTake) }(
+        (bool success, ) = lister.call{ value: paymentAmount - feeToTake }(
             ""
         );
         require(success, "Payment failed");
 
-        uint256 postBalance = address(this).balance.sub(feeToTake);
+        uint256 postBalance = address(this).balance - feeToTake;
 
         // If extra ETH was sent, refund to buyer
-        if (postBalance.sub(preBalance) > 0) {
-            (success, ) = msg.sender.call{ value: postBalance.sub(preBalance) }(
+        if (postBalance - preBalance > 0) {
+            (success, ) = msg.sender.call{ value: postBalance - preBalance }(
                 ""
             );
             require(success, "Refund failed");
@@ -421,7 +419,7 @@ contract NFTSwap is Ownable {
      */
     function _submitNFTBuyOrder(bytes32 listingId) private {
         // Get balance of contract prior to deposit
-        uint256 preBalance = address(this).balance.sub(msg.value);
+        uint256 preBalance = address(this).balance - msg.value;
 
         // Get listing from storage
         Orders.NFTListing storage listing = _orders[listingId];
@@ -457,17 +455,17 @@ contract NFTSwap is Ownable {
         uint256 feeToTake = _takeFee(paymentAmount);
 
         // Send ETH to seller
-        (bool success, ) = lister.call{ value: paymentAmount.sub(feeToTake) }(
+        (bool success, ) = lister.call{ value: paymentAmount - feeToTake }(
             ""
         );
         require(success, "Payment failed");
 
         // Check balance after deposit and fee
-        uint256 postBalance = address(this).balance.sub(feeToTake);
+        uint256 postBalance = address(this).balance - feeToTake;
 
         // If extra ETH was sent, refund it to buyer
-        if (postBalance.sub(preBalance) > 0) {
-            (success, ) = msg.sender.call{ value: postBalance.sub(preBalance) }(
+        if (postBalance - preBalance > 0) {
+            (success, ) = msg.sender.call{ value: postBalance - preBalance }(
                 ""
             );
             require(success, "Refund failed");
